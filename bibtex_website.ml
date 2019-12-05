@@ -11,9 +11,10 @@ let string_of_atoms ?prepend:(p="") ?append:(ap="") atoms =
     atoms)
   ^ ap
 
-let strip_bibtex s = String.split_on_chars s ~on:['{'; '}'] |> String.concat
+let strip_bibtex s = Str.(global_replace (regexp "[{}]") "" s)
 
 type author = { firstnames : string list; lastname : string }
+
 let parse_authors field =
   let parse_author s =
     match String.lsplit2 ~on:',' s with
@@ -29,7 +30,10 @@ let parse_authors field =
 
 let format_authors l =
   let format_author a =
-    let initials = List.map ~f:(fun s -> String.(get s 0 |> of_char) ^ ". ") a.firstnames
+    let initials = List.map ~f:(fun s ->
+        (* Initial with rule for hyphen name. *)
+        Str.(global_replace (regexp {|\(-?[^-]\)[^-]*|}) {|\1.|} s) ^ " "
+      ) a.firstnames
       |> String.concat in
     initials ^ a.lastname
   in
@@ -87,7 +91,7 @@ let bibentry_to_string ?bibfile entry =
   let authors = format_authors entry.author |> strip_bibtex in
   let journal = omap entry.journal in
   let volume = omap entry.volume ~f:((^) " ") in
-  let number = omap entry.number ~f:((^) ", no. ") in
+  let number = omap entry.number ~f:((^) ", no.&nbsp;") in
   let year = omap entry.year ~f:(fun s -> " (" ^ s ^ ")") in
   let pages = omap entry.pages ~f:(fun x -> (* TODO: parse pages *)
         ": " ^ x |> Str.(global_replace (regexp "-+") "–")) in
@@ -103,8 +107,8 @@ let bibentry_to_string ?bibfile entry =
     List.filter ~f:(fun s -> not (String.equal s "")) [ bib_link; arxiv_link ]
     |> function
       | [] -> ""
-      | [hd] -> " [ " ^ hd ^ " ]"
-      | hd::tl -> " [ " ^ (List.fold ~init:hd ~f:(fun acc s -> acc ^ " | " ^ s) tl) ^ " ]"
+      | [hd] -> " [&nbsp;" ^ hd ^ "&nbsp;]"
+      | hd::tl -> " [&nbsp;" ^ (List.fold ~init:hd ~f:(fun acc s -> acc ^ " | " ^ s) tl) ^ "&nbsp;]"
   in
   authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ links
 
