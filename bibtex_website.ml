@@ -48,38 +48,52 @@ let format_title ?url:(url="") title =
   | "" -> title
   | link -> {|<a href="|} ^ link ^ {|">|} ^ title ^ "</a>"
 
-let item_to_string db key =
-  let item = Bibtex.find_entry key db in
-  match item with
-  | (Comment _|Preamble _|Abbrev (_, _)) -> ""
-  | Entry (_etype, _key, properties) ->
-      let prop_map ?f:(f=(fun x -> x)) ?fail:(fail=false) tag =
-        let missing_field_errmsg = tag ^ " field not found or empty in item " ^ key in
-        match List.Assoc.find ~equal:String.equal properties tag with
-        | None -> if fail then failwith missing_field_errmsg else ""
-        | Some s -> begin match string_of_atoms s with
-          | "" -> if fail then failwith missing_field_errmsg else ""
-          | s  -> f s
-        end
-      in
-      let authors = prop_map "author" ~fail:true ~f:(fun x -> parse_authors x |> format_authors) in
-      let title = 
-        let title = prop_map "title" ~fail:true in
-        let url = prop_map "url" in
-        format_title ~url title in
-      let journal = prop_map "journal" in
-      let volume = prop_map "volume" ~f:((^) " ") in
-      let number = prop_map "number" ~f:((^) ", no. ") in
-      let year = prop_map "year" ~f:(fun s -> " (" ^ s ^ ")") in
-      let pages = prop_map "pages" ~f:(fun x -> (* TODO: parse pages *)
+type bibentry = { title : string; author : author list; journal : string option; volume : string option; number : string option; year : string option; pages : string option; url : string option; arxiv : string option }
+let find_bibentry db key =
+  match Bibtex.find_entry key db with
+  | exception Caml.Not_found -> None
+  | item ->
+      match item with
+      | (Comment _|Preamble _|Abbrev (_, _)) -> None
+      | Entry (_etype, _key, properties) ->
+          let prop_get ?fail:(fail=false) tag =
+            let missing_field_errmsg = tag ^ " field not found or empty in item " ^ key in
+            match List.Assoc.find ~equal:String.equal properties tag with
+            | None -> if fail then failwith missing_field_errmsg else None
+            | Some f -> begin match string_of_atoms f with
+              | "" -> if fail then failwith missing_field_errmsg else None
+              | s  -> Some s
+            end
+            in
+            Some { title = prop_get ~fail:true "title" |> (Option.value_exn : (string option -> string));
+                   author = parse_authors (prop_get ~fail:true "author" |> (Option.value_exn : (string option -> string)));
+                   journal = prop_get "journal";
+                   volume = prop_get "volume";
+                   number = prop_get "number";
+                   year = prop_get "year";
+                   pages = prop_get "pages";
+                   url = prop_get "url";
+                   arxiv = prop_get "arxiv" }
+
+let bibentry_to_string entry =
+  let omap ?f:(f=(fun x->x)) = Option.value_map ~default:"" ~f in
+  let title = 
+    let url = omap entry.url in
+    format_title ~url entry.title in
+  let authors = format_authors entry.author in
+  let journal = omap entry.journal in
+  let volume = omap entry.volume ~f:((^) " ") in
+  let number = omap entry.number ~f:((^) ", no.") in
+  let year = omap entry.year ~f:(fun s -> " (" ^ s ^ ")") in
+  let pages = omap entry.pages ~f:(fun x -> (* TODO: parse pages *)
         ": " ^ x |> Str.(global_replace (regexp "-+") "–")) in
-      let publication_data = match journal ^ volume ^ number ^ year ^ pages with
-      | "" -> ""
-      | s  -> s ^ "."
-      in
-      let arxiv_link = prop_map "arxiv" ~f:(fun x ->
-        {| [<a href="|} ^ x ^ {|">arXiv</a>]|}) in
-      authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ arxiv_link
+  let publication_data = match journal ^ volume ^ number ^ year ^ pages with
+  | "" -> ""
+  | s  -> s ^ "."
+  in
+  let arxiv_link = omap entry.arxiv ~f:(fun x ->
+    {| [<a href="|} ^ x ^ {|">arXiv</a>]|}) in
+  authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ arxiv_link
 
 let () =
   let args = Sys.argv |> Array.to_list in
@@ -95,8 +109,10 @@ let () =
       Out_channel.output_substring Out_channel.stdout ~buf:s ~pos ~len:(i - pos);
       let tag_end = Str.match_end () in
       let key = Str.matched_group 1 s in
-      item_to_string db key
-      |> Out_channel.output_string Out_channel.stdout;
+      match find_bibentry db key with
+      | None -> failwith ("Entry " ^ key ^ " not found")
+      | Some e -> bibentry_to_string e
+        |> Out_channel.output_string Out_channel.stdout;
       parse_line s tag_end
     )
     else (
