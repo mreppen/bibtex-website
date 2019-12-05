@@ -67,16 +67,19 @@ let item_to_string db key =
         let title = prop_map "title" ~fail:true in
         let url = prop_map "url" in
         format_title ~url title in
-      let journal = prop_map "journal" ~f:((^) " ") in
+      let journal = prop_map "journal" in
       let volume = prop_map "volume" ~f:((^) " ") in
       let number = prop_map "number" ~f:((^) ", no. ") in
       let year = prop_map "year" ~f:(fun s -> " (" ^ s ^ ")") in
       let pages = prop_map "pages" ~f:(fun x -> (* TODO: parse pages *)
         ": " ^ x |> Str.(global_replace (regexp "-+") "–")) in
+      let publication_data = match journal ^ volume ^ number ^ year ^ pages with
+      | "" -> ""
+      | s  -> s ^ "."
+      in
       let arxiv_link = prop_map "arxiv" ~f:(fun x ->
         {| [<a href="|} ^ x ^ {|">arXiv</a>]|}) in
-      authors ^ {|. "|} ^ title ^ {|." |}
-      ^ journal ^ volume ^ number ^ year ^ pages ^ "." ^ arxiv_link
+      authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ arxiv_link
 
 let () =
   let args = Sys.argv |> Array.to_list in
