@@ -8,7 +8,7 @@ let string_of_atoms ?prepend:(p="") ?append:(ap="") atoms =
   (List.fold ~f:(fun s a -> s ^ match a with
     | Bibtex.Id a -> a
     | Bibtex.String a -> a) ~init:p
-    atoms)
+    atoms |> String.split_on_chars ~on:['{'; '}'] |> String.concat)
   ^ ap
 
 type author = { firstnames : string list; lastname : string }
@@ -43,6 +43,7 @@ let format_authors l =
 
 
 let format_title ?url:(url=None) title =
+  let title = String.substr_replace_all ~pattern:"--" ~with_:"–" title in
   match url with
   | None -> title
   | Some link -> {|<a href="|} ^ (string_of_atoms link) ^ {|">|} ^ title ^ "</a>"
@@ -52,11 +53,11 @@ let item_to_string db key =
   match item with
   | (Comment _|Preamble _|Abbrev (_, _)) -> ""
   | Entry (_etype, _key, properties) ->
-      let prop_get= List.Assoc.find ~equal:String.equal properties in
+      let prop_get = List.Assoc.find ~equal:String.equal properties in
       let authors = match prop_get "author" with
       | None -> failwith ("author field not found in item " ^ key)
       | Some x -> string_of_atoms x |> parse_authors |> format_authors
-          in
+      in
       let title = 
         let title = match prop_get "title" with
         | None -> failwith ("title field not found in item " ^ key)
