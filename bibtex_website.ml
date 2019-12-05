@@ -42,44 +42,38 @@ let format_authors l =
   | h::t -> format_authors_rec t (format_author h)
 
 
-let format_title ?url:(url=None) title =
+let format_title ?url:(url="") title =
   let title = String.substr_replace_all ~pattern:"--" ~with_:"–" title in
   match url with
-  | None -> title
-  | Some link -> {|<a href="|} ^ (string_of_atoms link) ^ {|">|} ^ title ^ "</a>"
+  | "" -> title
+  | link -> {|<a href="|} ^ link ^ {|">|} ^ title ^ "</a>"
 
 let item_to_string db key =
   let item = Bibtex.find_entry key db in
   match item with
   | (Comment _|Preamble _|Abbrev (_, _)) -> ""
   | Entry (_etype, _key, properties) ->
-      let prop_get = List.Assoc.find ~equal:String.equal properties in
-      let failwith_missing_field f = failwith (f ^ " field not found in item " ^ key) in
-      let authors = match prop_get "author" with
-      | None -> failwith_missing_field "author"
-      | Some x -> string_of_atoms x |> parse_authors |> format_authors
+      let prop_map ?f:(f=(fun x -> x)) ?fail:(fail=false) tag =
+        let missing_field_errmsg = tag ^ " field not found or empty in item " ^ key in
+        match List.Assoc.find ~equal:String.equal properties tag with
+        | None -> if fail then failwith missing_field_errmsg else ""
+        | Some s -> begin match string_of_atoms s with
+          | "" -> if fail then failwith missing_field_errmsg else ""
+          | s  -> f s
+        end
       in
+      let authors = prop_map "author" ~fail:true ~f:(fun x -> parse_authors x |> format_authors) in
       let title = 
-        let title = match prop_get "title" with
-        | None -> failwith_missing_field "title"
-        | Some x -> string_of_atoms x
-        in
-        let url = prop_get "url" in
+        let title = prop_map "title" ~fail:true in
+        let url = prop_map "url" in
         format_title ~url title in
-      let omap ?f:(f=(fun x -> x)) x = match x with
-      | None -> ""
-      | Some s -> begin match string_of_atoms s with
-        | "" -> ""
-        | s  -> f s
-      end
-      in
-      let journal = prop_get "journal" |> omap ~f:((^) " ") in
-      let volume = prop_get "volume" |> omap ~f:((^) " ") in
-      let number = prop_get "number" |> omap ~f:((^) ", no. ") in
-      let year = prop_get "year" |> omap ~f:(fun s -> " (" ^ s ^ ")") in
-      let pages = prop_get "pages" |> omap ~f:(fun x -> (* TODO: parse pages *)
+      let journal = prop_map "journal" ~f:((^) " ") in
+      let volume = prop_map "volume" ~f:((^) " ") in
+      let number = prop_map "number" ~f:((^) ", no. ") in
+      let year = prop_map "year" ~f:(fun s -> " (" ^ s ^ ")") in
+      let pages = prop_map "pages" ~f:(fun x -> (* TODO: parse pages *)
         ": " ^ x |> Str.(global_replace (regexp "-+") "–")) in
-      let arxiv_link = prop_get "arxiv" |> omap ~f:(fun x ->
+      let arxiv_link = prop_map "arxiv" ~f:(fun x ->
         {| [<a href="|} ^ x ^ {|">arXiv</a>]|}) in
       authors ^ {|. "|} ^ title ^ {|." |}
       ^ journal ^ volume ^ number ^ year ^ pages ^ "." ^ arxiv_link
