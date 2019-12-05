@@ -1,5 +1,5 @@
 (executable
   (name      bibtex_website)
   (public_name bibtex-website)
-  (libraries base stdio str bibtex2html_lib)
+  (libraries base stdio str unix bibtex2html_lib)
   (modules   bibtex_website))

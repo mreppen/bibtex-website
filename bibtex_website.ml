@@ -8,8 +8,10 @@ let string_of_atoms ?prepend:(p="") ?append:(ap="") atoms =
   (List.fold ~f:(fun s a -> s ^ match a with
     | Bibtex.Id a -> a
     | Bibtex.String a -> a) ~init:p
-    atoms |> String.split_on_chars ~on:['{'; '}'] |> String.concat)
+    atoms)
   ^ ap
+
+let strip_bibtex s = String.split_on_chars s ~on:['{'; '}'] |> String.concat
 
 type author = { firstnames : string list; lastname : string }
 let parse_authors field =
@@ -48,14 +50,14 @@ let format_title ?url:(url="") title =
   | "" -> title
   | link -> {|<a href="|} ^ link ^ {|">|} ^ title ^ "</a>"
 
-type bibentry = { title : string; author : author list; journal : string option; volume : string option; number : string option; year : string option; pages : string option; url : string option; arxiv : string option }
+type bibentry = { entrytype : string; key : string; title : string; author : author list; journal : string option; volume : string option; number : string option; year : string option; pages : string option; url : string option; arxiv : string option }
 let find_bibentry db key =
   match Bibtex.find_entry key db with
   | exception Caml.Not_found -> None
   | item ->
       match item with
       | (Comment _|Preamble _|Abbrev (_, _)) -> None
-      | Entry (_etype, _key, properties) ->
+      | Entry (entrytype, key, properties) ->
           let prop_get ?fail:(fail=false) tag =
             let missing_field_errmsg = tag ^ " field not found or empty in item " ^ key in
             match List.Assoc.find ~equal:String.equal properties tag with
@@ -65,7 +67,9 @@ let find_bibentry db key =
               | s  -> Some s
             end
             in
-            Some { title = prop_get ~fail:true "title" |> (Option.value_exn : (string option -> string));
+            Some { entrytype;
+                   key;
+                   title = prop_get ~fail:true "title" |> (Option.value_exn : (string option -> string));
                    author = parse_authors (prop_get ~fail:true "author" |> (Option.value_exn : (string option -> string)));
                    journal = prop_get "journal";
                    volume = prop_get "volume";
@@ -75,12 +79,12 @@ let find_bibentry db key =
                    url = prop_get "url";
                    arxiv = prop_get "arxiv" }
 
-let bibentry_to_string entry =
-  let omap ?f:(f=(fun x->x)) = Option.value_map ~default:"" ~f in
+let bibentry_to_string ?bibfile entry =
+  let omap ?f:(f=(fun x->x)) o = Option.value_map ~default:"" ~f o |> strip_bibtex in
   let title = 
     let url = omap entry.url in
-    format_title ~url entry.title in
-  let authors = format_authors entry.author in
+    format_title ~url (strip_bibtex entry.title) in
+  let authors = format_authors entry.author |> strip_bibtex in
   let journal = omap entry.journal in
   let volume = omap entry.volume ~f:((^) " ") in
   let number = omap entry.number ~f:((^) ", no.") in
@@ -91,9 +95,41 @@ let bibentry_to_string entry =
   | "" -> ""
   | s  -> s ^ "."
   in
-  let arxiv_link = omap entry.arxiv ~f:(fun x ->
-    {| [<a href="|} ^ x ^ {|">arXiv</a>]|}) in
-  authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ arxiv_link
+  let links =
+    let arxiv_link = omap entry.arxiv ~f:(fun x ->
+      {|<a href="|} ^ x ^ {|">arXiv</a>|}) in
+    let bib_link = Option.value_map bibfile ~default:"" ~f:(fun x ->
+      {|<a href="|} ^ x ^ {|">bib</a>|}) in
+    List.filter ~f:(fun s -> not (String.equal s "")) [ bib_link; arxiv_link ]
+    |> function
+      | [] -> ""
+      | [hd] -> " [ " ^ hd ^ " ]"
+      | hd::tl -> " [ " ^ (List.fold ~init:hd ~f:(fun acc s -> acc ^ " | " ^ s) tl) ^ " ]"
+  in
+  authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ links
+
+let bibentry_to_bib e =
+  let otag tag f = match f with
+  | None -> ""
+  | Some s -> "\t" ^ tag ^ " = {" ^ s ^ "},\n"
+  in
+  let rec author_to_bib acc = function
+  | [] -> acc
+  | [hd] -> acc ^ (hd.lastname ^ ", " ^ (String.concat ~sep:" " hd.firstnames))
+  | hd::tl -> author_to_bib (acc ^ (hd.lastname ^ ", " ^ (String.concat ~sep:" " hd.firstnames))  ^ " and ") tl
+  in
+  "@" ^ e.entrytype ^ "{" ^ e.key ^ ",\n"
+  ^ ("\ttitle = {" ^ e.title ^ "},\n")
+  ^ ("\tauthor = {" ^ (author_to_bib "" e.author)
+    ^ "},\n")
+  ^ (otag "journal" e.journal)
+  ^ (otag "volume" e.volume)
+  ^ (otag "number" e.number)
+  ^ (otag "year" e.year)
+  ^ (otag "pages" e.pages)
+  ^ (otag "url" e.url)
+  ^ (otag "arxiv" e.arxiv)
+  ^ "}\n"
 
 let () =
   let args = Sys.argv |> Array.to_list in
@@ -111,15 +147,21 @@ let () =
       let key = Str.matched_group 1 s in
       match find_bibentry db key with
       | None -> failwith ("Entry " ^ key ^ " not found")
-      | Some e -> bibentry_to_string e
-        |> Out_channel.output_string Out_channel.stdout;
-      parse_line s tag_end
+      | Some e -> begin
+        let bibfile = "bib/" ^ e.key ^ ".bib" in
+        bibentry_to_string ~bibfile e |> Out_channel.output_string Out_channel.stdout;
+        Out_channel.write_all bibfile ~data:(bibentry_to_bib e);
+        parse_line s tag_end
+      end
     )
     else (
       Out_channel.output_substring Out_channel.stdout ~buf:s ~pos ~len:((String.length s) - pos);
       Out_channel.newline Out_channel.stdout
     )
   in
+  (try Unix.mkdir "bib" (Unix.stat ".").st_perm
+   with
+   | Unix.Unix_error (Unix.EEXIST, _, _) -> ());
   List.iter ~f:(fun template ->
     In_channel.create template
     |> In_channel.iter_lines ~f:(fun x -> parse_line x 0)) templates
