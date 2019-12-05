@@ -1,0 +1,3 @@
+[submodule "bibtex2html-lib/bibtex2html"]
+	path = bibtex2html-lib/bibtex2html
+	url = https://github.com/backtracking/bibtex2html

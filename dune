@@ -1,0 +1,16 @@
+;(env
+; (dev
+;  (flags (:standard -w -27 -w -32 -w -39))))
+;
+;(menhir (modules parser bibtex_parser))
+;(ocamllex (modules lexer bibtex_lexer))
+;
+;(library
+; (name bibtex2html)
+; (libraries str)
+; (modules bibtex readbib options bibtex_parser bibtex_lexer))
+
+(executable
+  (name      bibtex_webpage)
+  (libraries base stdio str bibtex2html_lib)
+  (modules   bibtex_webpage))
