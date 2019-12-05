@@ -8,4 +8,4 @@
 (package
   (name bibtex-website)
   (synopsis "Insert bibtex references into html templates")
-  (depends base stdio))
+  (depends base stdio menhir))

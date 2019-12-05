@@ -7,6 +7,7 @@ depends: [
   "dune" {>= "1.11"}
   "base"
   "stdio"
+  "menhir"
 ]
 build: [
   ["dune" "subst"] {pinned}
