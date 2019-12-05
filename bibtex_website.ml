@@ -87,7 +87,7 @@ let bibentry_to_string ?bibfile entry =
   let authors = format_authors entry.author |> strip_bibtex in
   let journal = omap entry.journal in
   let volume = omap entry.volume ~f:((^) " ") in
-  let number = omap entry.number ~f:((^) ", no.") in
+  let number = omap entry.number ~f:((^) ", no. ") in
   let year = omap entry.year ~f:(fun s -> " (" ^ s ^ ")") in
   let pages = omap entry.pages ~f:(fun x -> (* TODO: parse pages *)
         ": " ^ x |> Str.(global_replace (regexp "-+") "–")) in
