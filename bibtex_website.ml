@@ -6,7 +6,7 @@ module Readbib = Bibtex2html_lib.Readbib
 
 let string_of_atoms ?prepend:(p="") ?append:(ap="") atoms =
   (List.fold ~f:(fun s a -> s ^ match a with
-    | Bibtex.Id a -> print_endline "hej"; a
+    | Bibtex.Id a -> a
     | Bibtex.String a -> a) ~init:p
     atoms)
   ^ ap
@@ -41,10 +41,6 @@ let format_authors l =
   | [] -> ""
   | h::t -> format_authors_rec t (format_author h)
 
-
-let str_of_stropt = function
-  | None -> ""
-  | Some x -> x
 
 let format_title ?url:(url=None) title =
   match url with
