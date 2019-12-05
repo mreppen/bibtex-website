@@ -1,3 +1,4 @@
+*.merlin
 # ---> OCaml
 *.annot
 *.cmo
