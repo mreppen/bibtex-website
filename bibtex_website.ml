@@ -54,26 +54,33 @@ let item_to_string db key =
   | (Comment _|Preamble _|Abbrev (_, _)) -> ""
   | Entry (_etype, _key, properties) ->
       let prop_get = List.Assoc.find ~equal:String.equal properties in
+      let failwith_missing_field f = failwith (f ^ " field not found in item " ^ key) in
       let authors = match prop_get "author" with
-      | None -> failwith ("author field not found in item " ^ key)
+      | None -> failwith_missing_field "author"
       | Some x -> string_of_atoms x |> parse_authors |> format_authors
       in
       let title = 
         let title = match prop_get "title" with
-        | None -> failwith ("title field not found in item " ^ key)
+        | None -> failwith_missing_field "title"
         | Some x -> string_of_atoms x
         in
         let url = prop_get "url" in
         format_title ~url title in
-      let journal = prop_get "journal" |> Option.value_map ~default:"" ~f:(string_of_atoms ~prepend:" ") in
-      let volume = prop_get "volume" |> Option.value_map ~default:"" ~f:(string_of_atoms ~prepend:" ") in
-      let number = prop_get "number" |> Option.value_map ~default:"" ~f:(string_of_atoms ~prepend:", no. ") in
-      let year = prop_get "year" |> Option.value_map ~default:"" ~f:(string_of_atoms ~prepend:" (" ~append:")") in
-      let pages = prop_get "pages" |> Option.value_map ~default:"" ~f:(fun x ->
-        string_of_atoms ~prepend:": " x
-        |> Str.(global_replace (regexp "-+") "–")) in
-      let arxiv_link = prop_get "arxiv"
-        |> Option.value_map ~default:"" ~f:(string_of_atoms ~prepend:{| [<a href="|} ~append:{|">arXiv</a>]|}) in
+      let omap ?f:(f=(fun x -> x)) x = match x with
+      | None -> ""
+      | Some s -> begin match string_of_atoms s with
+        | "" -> ""
+        | s  -> f s
+      end
+      in
+      let journal = prop_get "journal" |> omap ~f:((^) " ") in
+      let volume = prop_get "volume" |> omap ~f:((^) " ") in
+      let number = prop_get "number" |> omap ~f:((^) ", no. ") in
+      let year = prop_get "year" |> omap ~f:(fun s -> " (" ^ s ^ ")") in
+      let pages = prop_get "pages" |> omap ~f:(fun x -> (* TODO: parse pages *)
+        ": " ^ x |> Str.(global_replace (regexp "-+") "–")) in
+      let arxiv_link = prop_get "arxiv" |> omap ~f:(fun x ->
+        {| [<a href="|} ^ x ^ {|">arXiv</a>]|}) in
       authors ^ {|. "|} ^ title ^ {|." |}
       ^ journal ^ volume ^ number ^ year ^ pages ^ "." ^ arxiv_link
 
