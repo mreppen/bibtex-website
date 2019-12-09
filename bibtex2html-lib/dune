@@ -1,12 +1,12 @@
 (copy_files bibtex2html/*)
 
 (menhir (modules bibtex_parser))
-(ocamllex (modules bibtex_lexer))
+(ocamllex (modules bibtex_lexer latex_accents latexscan))
 
 (library
  (name bibtex2html_lib)
  ;(public_name bibtex2html-lib)
  (libraries str)
- (modules bibtex readbib options bibtex_parser bibtex_lexer)
+ (modules bibtex readbib options bibtex_parser bibtex_lexer latex_accents latexmacros latexscan)
  ;(modules_without_implementation version)
- (flags (:standard -w -27-32-39)))
+ (flags (:standard -w -11-27-32-39)))

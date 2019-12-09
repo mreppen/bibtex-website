@@ -3,13 +3,30 @@ open Stdio
 module Bibtex = Bibtex2html_lib.Bibtex
 module Readbib = Bibtex2html_lib.Readbib
 
+module Latex_expand = struct
+  Bibtex2html_lib.Latexmacros.html_entities ()
+
+  let macros s =
+    let fd_in, fd_out = Unix.pipe () in
+    let in_ch = Unix.in_channel_of_descr fd_in
+    and out_ch = Unix.out_channel_of_descr fd_out in
+    Bibtex2html_lib.Latexmacros.out_channel := out_ch;
+    Bibtex2html_lib.Latexscan.main (Lexing.from_string s);
+    Out_channel.close out_ch;
+    let res = In_channel.input_all in_ch in
+    In_channel.close in_ch;
+    res
+
+  let accents = Bibtex2html_lib.Latex_accents.normalize false
+
+  let all s = accents s |> macros
+end
+
 let string_of_atoms ?prepend:(p = "") ?append:(ap = "") atoms =
   List.fold
     ~f:(fun s a -> s ^ match a with Bibtex.Id a -> a | Bibtex.String a -> a)
     ~init:p atoms
   ^ ap
-
-let strip_bibtex s = Str.(global_replace (regexp "[{}]") "" s)
 
 type author = {firstnames: string list; lastname: string}
 
@@ -52,7 +69,6 @@ let format_authors l =
   match l with [] -> "" | h :: t -> format_authors_rec (format_author h) t
 
 let format_title ?(url = "") title =
-  let title = String.substr_replace_all ~pattern:"--" ~with_:"–" title in
   match url with
   | "" ->
       title
@@ -115,13 +131,13 @@ let find_bibentry db key =
 
 let bibentry_to_string ?bibfile entry =
   let omap ?(f = fun x -> x) o =
-    Option.value_map ~default:"" ~f o |> strip_bibtex
+    Option.value_map ~default:"" ~f:(fun x -> Latex_expand.all x |> f) o
   in
   let title =
     let url = omap entry.url in
-    format_title ~url (strip_bibtex entry.title)
+    format_title ~url (Latex_expand.all entry.title)
   in
-  let authors = format_authors entry.author |> strip_bibtex in
+  let authors = format_authors entry.author |> Latex_expand.all in
   let journal = omap entry.journal in
   let volume = omap entry.volume ~f:(( ^ ) " ") in
   let number = omap entry.number ~f:(( ^ ) ", no.&nbsp;") in
