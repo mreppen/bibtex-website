@@ -11,7 +11,7 @@ let format_title ?(url = "") title =
       {|<a href="|} ^ link ^ {|">|} ^ title ^ "</a>"
 
 
-let bibentry_to_string ?bibfile (entry : Bibentry.t) =
+let bibentry_to_string ~bibfile (entry : Bibentry.t) =
   let omap ?(f = fun x -> x) o =
     Option.value_map ~default:"" ~f:(fun x -> Latex_expand.all x |> f) o
   in
@@ -64,13 +64,12 @@ let bibentry_to_string ?bibfile (entry : Bibentry.t) =
   in
   authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ links
 
-let () =
-  let args = Sys.argv |> Array.to_list in
+let main bibdir args =
   let bibs =
-    List.filter (List.tl_exn args)
+    List.filter args
       ~f:Str.(fun s -> string_match (regexp {|.*\.bib$|}) s 0)
   and templates =
-    List.filter (List.tl_exn args)
+    List.filter args
       ~f:Str.(fun s -> string_match (regexp {|.*\.html$|}) s 0)
   in
   let db = Bibdb.of_files bibs in
@@ -85,20 +84,48 @@ let () =
       | None ->
           failwith ("Entry " ^ key ^ " not found")
       | Some e ->
-          let bibfile = "bib/" ^ e.key ^ ".bib" in
+          let bibfile = Option.map bibdir ~f:(fun x -> 
+                let bibfile = x ^ "/" ^ e.key ^ ".bib" in
+                Out_channel.write_all bibfile ~data:(Bibentry.to_bib e);
+                bibfile)
+          in
           bibentry_to_string ~bibfile e
           |> Out_channel.output_string Out_channel.stdout ;
-          Out_channel.write_all bibfile ~data:(Bibentry.to_bib e) ;
           parse_line s tag_end )
     else (
       Out_channel.output_substring Out_channel.stdout ~buf:s ~pos
         ~len:(String.length s - pos) ;
       Out_channel.newline Out_channel.stdout )
   in
-  ( try Unix.mkdir "bib" (Unix.stat ".").st_perm
-    with Unix.Unix_error (Unix.EEXIST, _, _) -> () ) ;
+  begin
+    match bibdir with None -> ()
+    | Some bibdir ->
+      try Unix.mkdir bibdir (Unix.stat ".").st_perm
+      with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
+  end ;
   List.iter
     ~f:(fun template ->
       In_channel.create template
       |> In_channel.iter_lines ~f:(fun x -> parse_line x 0))
     templates
+
+
+
+let () =
+  let open Cmdliner in
+  let bibdir =
+    let doc = "Creates separate .bib files in $(docv) for each entry, and links them in the HTML output." in
+    Arg.(value & opt (some string) None & info ["bibdir"] ~docv:"BIBDIR" ~doc)
+  in
+  let files =
+    let doc = "List of .bib files to read bibliography data and .html files to replace in." in
+    Arg.(non_empty & pos_all file [] & info [] ~docv:"FILES" ~doc)
+  in
+  let cmd =
+    let doc = "Replaced bibtex tags in HTML with references" in
+    let man = [] in
+    Term.(const main $ bibdir $ files),
+    Term.info "bibtex-website" ~version:"dev" ~doc ~exits:Term.default_exits ~man
+  in
+  Term.(exit @@ eval cmd)
+

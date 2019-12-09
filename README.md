@@ -17,7 +17,7 @@ opam install bibtex-website
 ```
 
 ## Usage
-```bibtex-website *.bib template.html > index.html```
+```bibtex-website --bibdir=bib *.bib template.html > index.html```
 generates .bib files in "bib/" and index.html with formatted references and links to the .bib files.
 
 ## Example
