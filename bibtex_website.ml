@@ -156,7 +156,14 @@ let bibentry_to_string ?bibfile entry =
   in
   let links =
     let arxiv_link =
-      omap entry.arxiv ~f:(fun x -> {|<a href="|} ^ x ^ {|">arXiv</a>|})
+      omap entry.arxiv ~f:(fun x ->
+        let open Str in
+        let link =
+          if string_match (regexp {|^\(arXiv:\)?[0-9]+\.[0-9]+$|}) x 0 then "https://arxiv.org/abs/" ^ x
+          else if string_match (regexp ({|^https?://arxiv.org/|})) x 0 then x
+          else failwith ("arxiv entry not an arXiv identifier or arXiv link: " ^ x)
+        in
+        {|<a href="|} ^ link ^ {|">arXiv</a>|})
     in
     let bib_link =
       Option.value_map bibfile ~default:"" ~f:(fun x ->
