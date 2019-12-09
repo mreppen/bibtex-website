@@ -2,4 +2,4 @@
   (name      bibtex_website)
   (public_name bibtex-website)
   (libraries base stdio str unix bibtex2html_lib)
-  (modules   bibtex_website))
+  (modules   bibtex_website bibtools))
