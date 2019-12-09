@@ -5,6 +5,17 @@ This code was written for better control over the output.
 
 Replaces any tag ```<bibtex item="bibkey">``` with a reference from ```@article{bibkey, ...}``` in supplied bib files.
 
+## Installation
+Install `ocaml` and `opam`.
+
+If opam is not already initialized: `opam init`
+
+Then run
+```
+opam pin bibtex-website https://github.com/mreppen/bibtex-website.git
+opam install bibtex-website
+```
+
 ## Usage
 ```bibtex-website *.bib template.html > index.html```
 generates .bib files in "bib/" and index.html with formatted references and links to the .bib files.
