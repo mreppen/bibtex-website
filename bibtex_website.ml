@@ -19,7 +19,7 @@ let bibentry_to_string ?bibfile (entry : Bibentry.t) =
     let url = omap entry.url in
     format_title ~url (Latex_expand.all entry.title)
   in
-  let authors = Author.list_to_string entry.author |> Latex_expand.all in
+  let authors = Author.list_to_html entry.author in
   let journal = omap entry.journal in
   let volume = omap entry.volume ~f:(( ^ ) " ") in
   let number = omap entry.number ~f:(( ^ ) ", no.&nbsp;") in

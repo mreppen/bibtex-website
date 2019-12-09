@@ -38,17 +38,18 @@ module Author = struct
     Str.split (Str.regexp "[ \t\n]+and[ \t\n]+") field
     |> List.map ~f:parse_author
 
-  let list_to_string l =
+  let list_to_html l =
     let format_author a =
       let initials =
         List.map
           ~f:(fun s ->
-            (* Initial with rule for hyphen name. *)
-            Str.(global_replace (regexp {|\(-?[^-]\)[^-]*|}) {|\1.|} s) ^ " ")
+            let s = Latex_expand.accents s in
+            (* Initial with rule for hyphen name. Takes HTML accents into account. *)
+            Str.(global_replace (regexp {|\(-?\(&[A-Za-z]*;\|[^-&]\)\)[^-]*|}) {|\1.|} s) ^ " ")
           a.firstnames
         |> String.concat
       in
-      initials ^ a.lastname
+      initials ^ (Latex_expand.accents a.lastname)
     in
     let rec format_authors_rec acc l =
       match l with
