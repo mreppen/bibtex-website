@@ -8,6 +8,7 @@ depends: [
   "base"
   "stdio"
   "menhir"
+  "cmdliner"
 ]
 build: [
   ["dune" "subst"] {pinned}
