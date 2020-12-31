@@ -124,20 +124,23 @@ module Bibentry = struct
     | Publication.Article _ -> "article"
     | Publication.Inproceedings _ -> "inproceedings"
 
-  let publication_tags = function
-    | Publication.Article e ->
-      [ (otag "journal" e.journal)
-      ; (otag "volume" e.volume)
-      ; (otag "number" e.number)
-      ; (otag "year" e.year)
-      ; (otag "pages" e.pages) ]
-    | Publication.Inproceedings e ->
-      [ (otag "booktitle" e.booktitle)
-      ; (otag "volume" e.volume)
-      ; (otag "series" e.series)
-      ; (otag "year" e.year)
-      ; (otag "publisher" e.publisher)
-      ; (otag "pages" e.pages) ]
+  let publication_tags p =
+    let tags = match p with
+      | Publication.Article e ->
+        [ (otag "journal" e.journal)
+        ; (otag "volume" e.volume)
+        ; (otag "number" e.number)
+        ; (otag "year" e.year)
+        ; (otag "pages" e.pages) ]
+      | Publication.Inproceedings e ->
+        [ (otag "booktitle" e.booktitle)
+        ; (otag "volume" e.volume)
+        ; (otag "series" e.series)
+        ; (otag "year" e.year)
+        ; (otag "publisher" e.publisher)
+        ; (otag "pages" e.pages) ]
+    in 
+    List.filter tags ~f:(fun s -> not (String.is_empty s))
 
   let to_bib e =
     let rec author_to_bib acc =
@@ -155,12 +158,13 @@ module Bibentry = struct
     in
     "@" ^ (publication_type e.publication) ^ "{" ^ e.key ^ ",\n"
     ^ String.concat ~sep:",\n"
-    [ ("\ttitle = {" ^ e.title ^ "},\n")
-    ; ("\tauthor = {" ^ (author_to_bib "" e.author) ^ "},\n")
-    ; (String.concat @@ publication_tags e.publication)
-    ; (otag "url" e.url)
-    ; (otag "arxiv" e.arxiv) ]
-    ^ "}\n"
+      (List.concat
+        [ [ ("\ttitle = {" ^ e.title ^ "}")
+          ; ("\tauthor = {" ^ (author_to_bib "" e.author) ^ "}") ]
+        ; publication_tags e.publication
+        ; [ (otag "url" e.url)
+          ; (otag "arxiv" e.arxiv) ] ])
+    ^ "\n}\n"
 end
 
 module Bibdb = struct
