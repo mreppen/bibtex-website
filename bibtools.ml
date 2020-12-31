@@ -54,16 +54,20 @@ module Author = struct
       in
       initials ^ (Latex_expand.accents a.lastname)
     in
-    let rec format_authors_rec acc l =
-      match l with
-      | [] ->
+    let rec format_authors_rec acc oxford l =
+      match l, oxford with
+      | [], _ ->
           acc
-      | [h] ->
+      | [h], true ->
           acc ^ ", and " ^ format_author h
-      | h :: t ->
-          format_authors_rec (acc ^ ", " ^ format_author h) t
+      | [h], false ->
+          acc ^ " and " ^ format_author h
+      | h :: t, _ ->
+          format_authors_rec (acc ^ ", " ^ format_author h) true t
     in
-    match l with [] -> "" | h :: t -> format_authors_rec (format_author h) t
+    match l with
+    | [] -> ""
+    | h :: t -> format_authors_rec (format_author h) false t
 
   let firstnames a = a.firstnames
   let lastname a = a.lastname
