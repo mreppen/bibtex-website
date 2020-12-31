@@ -12,29 +12,16 @@ let format_title ?(url = "") title =
 
 
 let bibentry_to_string ~bibfile (entry : Bibentry.t) =
-  let omap ?(f = fun x -> x) o =
-    Option.value_map ~default:"" ~f:(fun x -> Latex_expand.all x |> f) o
-  in
+  let omap = Latex_expand.omap in
   let title =
     let url = omap entry.url in
     format_title ~url (Latex_expand.all entry.title)
   in
   let authors = Author.list_to_html entry.author in
-  let journal = omap entry.journal in
-  let volume = omap entry.volume ~f:(( ^ ) " ") in
-  let number = omap entry.number ~f:(( ^ ) ", no.&nbsp;") in
-  let year = omap entry.year ~f:(fun s -> " (" ^ s ^ ")") in
-  let pages =
-    omap entry.pages ~f:(fun x ->
-        (* TODO: parse pages *)
-        ": " ^ x |> Str.(global_replace (regexp "-+") "–"))
-  in
-  let publication_data =
-    match journal ^ volume ^ number ^ year ^ pages with
-    | "" ->
-        ""
-    | s ->
-        s ^ "."
+  let publication_str =
+    match Publication.to_html entry.publication with
+    | "" -> ""
+    | s -> s ^ "."
   in
   let links =
     let arxiv_link =
@@ -62,7 +49,7 @@ let bibentry_to_string ~bibfile (entry : Bibentry.t) =
         ^ List.fold ~init:hd ~f:(fun acc s -> acc ^ " | " ^ s) tl
         ^ "&nbsp;]"
   in
-  authors ^ {|. "|} ^ title ^ {|." |} ^ publication_data ^ links
+  authors ^ {|. "|} ^ title ^ {|." |} ^ publication_str ^ links
 
 let main bibdir args =
   let bibs =
