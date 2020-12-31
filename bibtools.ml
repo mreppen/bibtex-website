@@ -83,7 +83,7 @@ module Publication = struct
   type inproceedings =
     { booktitle: string option
     ; volume: string option
-    ;	series: string option
+    ; series: string option
     ; year: string option
     ; publisher: string option
     ; pages: string option }
@@ -160,14 +160,16 @@ module Bibentry = struct
             ^ " and " )
             tl
     in
-    "@" ^ (publication_type e.publication) ^ "{" ^ e.key ^ ",\n"
-    ^ String.concat ~sep:",\n"
-      (List.concat
+    let all_tags = List.concat
         [ [ ("\ttitle = {" ^ e.title ^ "}")
           ; ("\tauthor = {" ^ (author_to_bib "" e.author) ^ "}") ]
         ; publication_tags e.publication
         ; [ (otag "url" e.url)
-          ; (otag "arxiv" e.arxiv) ] ])
+          ; (otag "arxiv" e.arxiv) ] ]
+    in
+    "@" ^ (publication_type e.publication) ^ "{" ^ e.key ^ ",\n"
+    ^ String.concat ~sep:",\n"
+      (List.filter ~f:(fun s -> not (String.is_empty s)) all_tags)
     ^ "\n}\n"
 end
 
@@ -207,7 +209,7 @@ module Bibdb = struct
       | "inproceedings" -> Publication.Inproceedings
         { booktitle= prop_get properties "booktitle"
         ; volume= prop_get properties "volume"
-        ;	series= prop_get properties "series"
+        ; series= prop_get properties "series"
         ; year= prop_get properties "year"
         ; publisher= prop_get properties "publisher"
         ; pages= prop_get properties "pages" }
