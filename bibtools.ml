@@ -52,7 +52,7 @@ module Author = struct
           a.firstnames
         |> String.concat
       in
-      initials ^ (Latex_expand.accents a.lastname)
+      Printf.sprintf {|<span class="author">%s%s</span>|} initials (Latex_expand.accents a.lastname)
     in
     let rec format_authors_rec acc oxford l =
       match l, oxford with
@@ -99,13 +99,13 @@ module Publication = struct
     let omap = Latex_expand.omap in
     match p with
     | Article x ->
-      omap x.journal
+      omap ~f:(Printf.sprintf {|<span class="journal">%s</span>|}) x.journal
       ^ omap ~f:(( ^ ) " ") x.volume
       ^ omap ~f:(( ^ ) ", no.&nbsp;") x.number
       ^ omap ~f:(fun year -> " (" ^ year ^ ")") x.year
       ^ omap ~f:format_pages x.pages
     | Inproceedings x ->
-      omap ~f:(fun bt -> bt ^ ".") x.booktitle
+      omap ~f:(Printf.sprintf {|<span class="booktitle">%s</span>.|}) x.booktitle
       ^ omap ~f:(( ^ ) " ") x.publisher
       ^ omap ~f:(( ^ ) " ") x.volume
       ^ omap ~f:format_pages x.pages

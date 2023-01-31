@@ -4,11 +4,12 @@ open Stdio
 open Bibtools
 
 let format_title ?(url = "") title =
-  match url with
+  (match url with
   | "" ->
       title
   | link ->
-      {|<a href="|} ^ link ^ {|">|} ^ title ^ "</a>"
+      Printf.sprintf {|<a href="%s">%s</a>|} link title
+  ) |> Printf.sprintf {|<span class="title"><q>%s</q></span>|}
 
 
 let bibentry_to_string ~bibfile (entry : Bibentry.t) =
@@ -18,11 +19,7 @@ let bibentry_to_string ~bibfile (entry : Bibentry.t) =
     format_title ~url (Latex_expand.all entry.title)
   in
   let authors = Author.list_to_html entry.author in
-  let publication_str =
-    match Publication.to_html entry.publication with
-    | "" -> ""
-    | s -> s ^ "."
-  in
+  let publication_str = Publication.to_html entry.publication in
   let links =
     let arxiv_link =
       omap entry.arxiv ~f:(fun x ->
@@ -39,6 +36,7 @@ let bibentry_to_string ~bibfile (entry : Bibentry.t) =
           {|<a href="|} ^ x ^ {|">bib</a>|})
     in
     List.filter ~f:(fun s -> not (String.equal s "")) [bib_link; arxiv_link]
+    |> List.map ~f:(Printf.sprintf {|<span class="paperlink">%s</span>|})
     |> function
     | [] ->
         ""
@@ -49,7 +47,7 @@ let bibentry_to_string ~bibfile (entry : Bibentry.t) =
         ^ List.fold ~init:hd ~f:(fun acc s -> acc ^ " | " ^ s) tl
         ^ "&nbsp;]"
   in
-  authors ^ {|. "|} ^ title ^ {|." |} ^ publication_str ^ links
+  Printf.sprintf {|<span class="publication">%s %s, by %s. %s</span>|} title publication_str authors links
 
 let main bibdir args =
   let bibs =
