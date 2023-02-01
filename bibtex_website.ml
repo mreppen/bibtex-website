@@ -29,14 +29,13 @@ let bibentry_to_string ~bibfile (entry : Bibentry.t) =
           else if string_match (regexp ({|^https?://arxiv.org/|})) x 0 then x
           else failwith ("arxiv entry not an arXiv identifier or arXiv link: " ^ x)
         in
-        {|<a href="|} ^ link ^ {|">arXiv</a>|})
+        {|<a class="paperlink" href="|} ^ link ^ {|">arXiv</a>|})
     in
     let bib_link =
       Option.value_map bibfile ~default:"" ~f:(fun x ->
-          {|<a href="|} ^ x ^ {|">bib</a>|})
+          {|<a class="bib paperlink" href="|} ^ x ^ {|">bib</a>|})
     in
     List.filter ~f:(fun s -> not (String.equal s "")) [bib_link; arxiv_link]
-    |> List.map ~f:(Printf.sprintf {|<span class="paperlink">%s</span>|})
     |> function
     | [] ->
         ""
