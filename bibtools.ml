@@ -222,7 +222,7 @@ module Bibdb = struct
       | x -> failwith ("Publication type " ^ x ^ "not implemented")
     in
     match Bibtex.find_entry key db with
-    | exception Caml.Not_found ->
+    | exception Stdlib.Not_found ->
         None
     | item -> (
       match item with

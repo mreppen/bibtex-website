@@ -59,7 +59,7 @@ let main bibdir args =
   let db = Bibdb.of_files bibs in
   let rec parse_line s pos =
     let r = Str.regexp {|<bibtex item="\([A-Za-z0-9-_]+\)" */?>|} in
-    let i = try Str.search_forward r s pos with Caml.Not_found -> -1 in
+    let i = try Str.search_forward r s pos with Stdlib.Not_found -> -1 in
     if i >= pos then (
       Out_channel.output_substring Out_channel.stdout ~buf:s ~pos ~len:(i - pos) ;
       let tag_end = Str.match_end () in
